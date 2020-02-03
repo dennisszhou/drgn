@@ -835,7 +835,6 @@ extern int dwarf_getscopes (Dwarf_Die *cudie, Dwarf_Addr pc,
    Returns -1 for errors or 0 if DIE is not found in any scope entry.  */
 extern int dwarf_getscopes_die (Dwarf_Die *die, Dwarf_Die **scopes);
 
-
 /* Search SCOPES[0..NSCOPES-1] for a variable called NAME.
    Ignore the first SKIP_SHADOWS scopes that match the name.
    If MATCH_FILE is not null, accept only declaration in that source file;
@@ -884,6 +883,9 @@ extern Dwarf_Arange *dwarf_getarange_addr (Dwarf_Aranges *aranges,
 extern ptrdiff_t dwarf_getfuncs (Dwarf_Die *cudie,
 				 int (*callback) (Dwarf_Die *, void *),
 				 void *arg, ptrdiff_t offset);
+
+extern int dwarf_getfuncs_pc(Dwarf_Die *cudie, Dwarf_Addr pc,
+			     Dwarf_Die **scopes);
 
 
 /* Return file name containing definition of the given declaration.
