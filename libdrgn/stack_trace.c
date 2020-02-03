@@ -192,6 +192,60 @@ drgn_stack_frame_register_by_name(struct drgn_stack_frame *frame,
 	return drgn_stack_frame_register(frame, reg->number, ret);
 }
 
+#define NR_EXPRS 16
+LIBDRGN_PUBLIC struct drgn_error *
+drgn_stack_frame_variable(struct drgn_stack_frame *frame, const char *name,
+			  const char **ret_name,
+			  int *ret_code,
+			  uint64_t *ret_val)
+{
+	struct drgn_error *err;
+	Dwfl_Module *module;
+	Dwarf_Addr pc, value, bias;
+	Dwarf_Die *cudie, *scopes;
+	Dwarf_Die found;
+	Dwarf_Attribute attr, *pattr = NULL;
+	Dwarf_Op *exprs = malloc(sizeof(Dwarf_Op) * NR_EXPRS);
+	int nscopes;
+	size_t exprlens[NR_EXPRS];
+	int ret;
+	int i;
+
+	module = dwfl_frame_module(frame->frame);
+	pc = (Dwarf_Addr)drgn_stack_frame_pc(frame);
+	cudie = dwfl_module_addrdie(module, pc, &bias);
+
+	nscopes = dwarf_getscopes(cudie, pc, &scopes);
+	if (!nscopes)
+		return drgn_error_libdwfl();
+
+	for (i = 0; i < nscopes; i++) {
+		bool is_func = (dwarf_tag(&scopes[i]) == DW_TAG_subroutine_type);
+		printf("scope %d: %s %d\n", i, dwarf_diename(&scopes[i]), dwarf_tag(&scopes[i]));
+	}
+
+	ret = dwarf_getscopevar(scopes, nscopes, name, 0, NULL, 0, 0, &found);
+	*ret_code = ret;
+	if (ret < 0)
+		return drgn_error_libdw();
+
+	pattr = dwarf_attr_integrate(&found, DW_AT_location, &attr);
+	if (!pattr)
+		return drgn_error_libdw();
+
+	*ret_name = dwarf_diename(&found);
+
+	ret = dwarf_getlocation_addr(pattr, pc, &exprs, exprlens, NR_EXPRS);
+	if (ret <= 0)
+		return drgn_error_libdw();
+
+	if (!dwfl_frame_eval_expr(frame->frame, &exprs[0], exprlens[0], &value))
+		return drgn_error_libdwfl();
+
+	*ret_val = value;
+	return NULL;
+}
+
 static bool drgn_thread_memory_read(Dwfl *dwfl, Dwarf_Addr addr,
 				    Dwarf_Word *result, void *dwfl_arg)
 {
@@ -613,7 +667,7 @@ static struct drgn_error *drgn_get_stack_trace(struct drgn_program *prog,
 		return drgn_error_create(DRGN_ERROR_INVALID_ARGUMENT,
 					 "cannot unwind stack without platform");
 	}
-	if ((prog->flags & (DRGN_PROGRAM_IS_LINUX_KERNEL |
+	if (false && (prog->flags & (DRGN_PROGRAM_IS_LINUX_KERNEL |
 			    DRGN_PROGRAM_IS_LIVE)) == DRGN_PROGRAM_IS_LIVE) {
 		return drgn_error_create(DRGN_ERROR_INVALID_ARGUMENT,
 					 "stack unwinding is not yet supported for live processes");

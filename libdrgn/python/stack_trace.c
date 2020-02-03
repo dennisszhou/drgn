@@ -159,6 +159,27 @@ static PyObject *StackFrame_get_pc(StackFrame *self, void *arg)
 	return PyLong_FromUnsignedLongLong(drgn_stack_frame_pc(self->frame));
 }
 
+static PyObject *StackFrame_variables(StackFrame *self, PyObject *arg)
+{
+	struct drgn_error *err;
+	const char *name = "test";
+	int ret = 0;
+	uint64_t value = 1234;
+
+	err = drgn_stack_frame_variable(self->frame, PyUnicode_AsUTF8(arg),
+					&name,
+					&ret,
+					&value);
+
+	if (err) {
+		return PyUnicode_FromString(name);
+		//return PyLong_FromLongLong(ret);
+	}
+
+	return PyLong_FromLongLong(value);
+	//return PyUnicode_FromString(name);
+}
+
 static PyMethodDef StackFrame_methods[] = {
 	{"symbol", (PyCFunction)StackFrame_symbol, METH_NOARGS,
 	 drgn_StackFrame_symbol_DOC},
@@ -166,6 +187,8 @@ static PyMethodDef StackFrame_methods[] = {
 	 METH_O, drgn_StackFrame_register_DOC},
 	{"registers", (PyCFunction)StackFrame_registers,
 	 METH_NOARGS, drgn_StackFrame_registers_DOC},
+	{"variables", (PyCFunction)StackFrame_variables, METH_O,
+	drgn_StackFrame_registers_DOC},
 	{},
 };
 

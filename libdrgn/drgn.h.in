@@ -2347,6 +2347,12 @@ struct drgn_error *drgn_stack_frame_register(struct drgn_stack_frame *frame,
 					     enum drgn_register_number regno,
 					     uint64_t *ret);
 
+struct drgn_error *drgn_stack_frame_variable(struct drgn_stack_frame *frame,
+					     const char *name,
+					     const char **ret_name,
+					     int *ret_code,
+					     uint64_t *ret_val);
+
 /** Get the value of a register (by name) in a stack frame. */
 struct drgn_error *
 drgn_stack_frame_register_by_name(struct drgn_stack_frame *frame,
