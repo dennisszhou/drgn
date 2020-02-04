@@ -15,9 +15,16 @@
 #include "string_builder.h"
 #include "symbol.h"
 
+struct drgn_stack_func {
+	struct drgn_stack_frame *frame;
+	Dwarf_Die die;
+};
+
 struct drgn_stack_frame {
 	struct drgn_stack_trace *trace;
 	Dwfl_Frame *frame;
+	size_t num_funcs;
+	struct drgn_stack_func *funcs;
 };
 
 struct drgn_stack_trace {
@@ -30,9 +37,21 @@ struct drgn_stack_trace {
 	struct drgn_stack_frame *frames;
 };
 
+static struct drgn_error *drgn_get_frame_funcs(struct drgn_stack_frame *frame,
+					       struct drgn_stack_func **funcs);
+
 LIBDRGN_PUBLIC void drgn_stack_trace_destroy(struct drgn_stack_trace *trace)
 {
 	dwfl_detach_thread(trace->thread);
+
+	/* free stack function */
+	for (int i = 0; i < trace->num_frames; i++) {
+		struct drgn_stack_frame *frame = &trace->frames[i];
+
+		if (frame->num_funcs != SIZE_MAX && frame->funcs)
+			free(frame->funcs);
+	}
+
 	free(trace);
 }
 
@@ -55,13 +74,15 @@ drgn_pretty_print_stack_trace(struct drgn_stack_trace *trace, char **ret)
 	struct string_builder str = {};
 
 	for (int i = 0; i < trace->num_frames; i++) {
-		struct drgn_stack_frame frame = trace->frames[i];
+		struct drgn_stack_frame *frame = &trace->frames[i];
+		struct drgn_stack_func *funcs;
 		uint64_t pc;
 		Dwfl_Module *module;
 		struct drgn_symbol sym;
+		size_t num_funcs;
 
-		pc = drgn_stack_frame_pc(&frame);
-		module = dwfl_frame_module(frame.frame);
+		pc = drgn_stack_frame_pc(frame);
+		module = dwfl_frame_module(frame->frame);
 		if (module) {
 			err = drgn_program_find_symbol_internal(trace->prog,
 								module, pc,
@@ -71,6 +92,24 @@ drgn_pretty_print_stack_trace(struct drgn_stack_trace *trace, char **ret)
 		}
 		if (err && err != &drgn_not_found)
 			goto err;
+
+		/* print inline functions */
+		err = drgn_get_frame_funcs(frame, &funcs);
+		if (err)
+			goto err;
+		for (size_t j = 0; j < frame->num_funcs; j++) {
+			const char *scope_name = dwarf_diename(&funcs[j].die);
+
+			if (strcmp(sym.name, scope_name) == 0)
+				continue;
+
+			if (!string_builder_appendf(&str, "  %zu.%zu %s\n",
+						    i, j, scope_name)) {
+				err = &drgn_enomem;
+				goto err;
+			}
+		}
+
 		if (!string_builder_appendf(&str, "#%-2zu ", i)) {
 			err = &drgn_enomem;
 			goto err;
@@ -481,10 +520,54 @@ out:
 	return true;
 }
 
+static struct drgn_error *drgn_get_frame_funcs(struct drgn_stack_frame *frame,
+					       struct drgn_stack_func **funcs)
+{
+	Dwfl_Module *module;
+	Dwarf_Die *cudie, *func_dies;
+	Dwarf_Addr pc, bias;
+	int res;
+
+	if (frame->num_funcs != SIZE_MAX) {
+		if (funcs)
+			*funcs = frame->funcs;
+		return NULL;
+	}
+
+	module = dwfl_frame_module(frame->frame);
+	pc = (Dwarf_Addr)drgn_stack_frame_pc(frame);
+	cudie = dwfl_module_addrdie(module, pc, &bias);
+
+	res = dwarf_getfuncs_pc(cudie, pc, &func_dies);
+	frame->num_funcs = (res > 0) ? res : 0;
+	if (res > 0) {
+		frame->funcs = malloc(frame->num_funcs *
+				      sizeof(struct drgn_stack_func));
+		if (!frame->funcs) {
+			frame->num_funcs = SIZE_MAX;
+			return &drgn_enomem;
+		}
+
+		for (int i = 0; i < frame->num_funcs; i++) {
+			struct drgn_stack_func *func = &frame->funcs[i];
+
+			func->frame = frame;
+			func->die = func_dies[i];
+		}
+		free(func_dies);
+
+		if (funcs)
+			*funcs = frame->funcs;
+	}
+
+	return NULL;
+}
+
 static int drgn_append_stack_frame(Dwfl_Frame *state, void *arg)
 {
 	struct drgn_stack_trace **tracep = arg;
 	struct drgn_stack_trace *trace = *tracep;
+	struct drgn_stack_frame *frame;
 
 	if (trace->num_frames >= trace->capacity) {
 		struct drgn_stack_frame *tmp;
@@ -502,8 +585,10 @@ static int drgn_append_stack_frame(Dwfl_Frame *state, void *arg)
 		trace->frames = tmp;
 		trace->capacity = new_capacity;
 	}
-	trace->frames[trace->num_frames].trace = trace;
-	trace->frames[trace->num_frames].frame = state;
+	frame = &trace->frames[trace->num_frames];
+	frame->trace = trace;
+	frame->frame = state;
+	frame->num_funcs = SIZE_MAX;
 	trace->num_frames++;
 	return DWARF_CB_OK;
 }
