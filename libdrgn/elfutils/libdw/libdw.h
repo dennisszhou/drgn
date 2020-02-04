@@ -887,6 +887,9 @@ extern ptrdiff_t dwarf_getfuncs (Dwarf_Die *cudie,
 extern int dwarf_getfuncs_pc(Dwarf_Die *cudie, Dwarf_Addr pc,
 			     Dwarf_Die **scopes);
 
+extern int dwarf_getfunc_scopes(Dwarf_Die *cudie, Dwarf_Addr pc,
+				Dwarf_Die **scopes);
+
 
 /* Return file name containing definition of the given declaration.
    Of the DECL has an (indirect, see dwarf_attr_integrate) decl_file

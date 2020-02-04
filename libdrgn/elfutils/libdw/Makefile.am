@@ -78,6 +78,7 @@ libdw_a_SOURCES = dwarf_begin.c dwarf_begin_elf.c dwarf_end.c dwarf_getelf.c \
 		  dwarf_macro_param1.c dwarf_macro_param2.c	\
 		  dwarf_macro_getsrcfiles.c			\
 		  dwarf_addrdie.c dwarf_getfuncs.c dwarf_getfuncs_pc.c \
+		  dwarf_getfunc_scopes.c \
 		  dwarf_decl_file.c dwarf_decl_line.c dwarf_decl_column.c \
 		  dwarf_func_inline.c dwarf_getsrc_file.c \
 		  libdw_findcu.c libdw_form.c libdw_alloc.c \
