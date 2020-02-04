@@ -92,7 +92,7 @@ typedef struct {
 typedef struct {
 	PyObject_HEAD
 	StackTrace *trace;
-	struct drgn_stack_frame frame;
+	struct drgn_stack_frame *frame;
 } StackFrame;
 
 typedef struct {

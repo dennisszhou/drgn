@@ -42,8 +42,8 @@ static StackFrame *StackTrace_item(StackTrace *self, Py_ssize_t i)
 	ret = (StackFrame *)StackFrame_type.tp_alloc(&StackFrame_type, 0);
 	if (!ret)
 		return NULL;
-	ret->frame.trace = self->trace;
-	ret->frame.i = i;
+
+	ret->frame = drgn_stack_trace_get_frame(self->trace, i);
 	ret->trace = self;
 	Py_INCREF(self);
 	return ret;

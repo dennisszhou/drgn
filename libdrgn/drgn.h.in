@@ -2308,17 +2308,16 @@ bool drgn_symbol_eq(struct drgn_symbol *a, struct drgn_symbol *b);
  */
 
 struct drgn_stack_trace;
-
-struct drgn_stack_frame {
-	struct drgn_stack_trace *trace;
-	size_t i;
-};
+struct drgn_stack_frame;
 
 /** Destroy a @ref drgn_stack_trace. */
 void drgn_stack_trace_destroy(struct drgn_stack_trace *trace);
 
 /** Get the number of stack frames in a stack trace. */
 size_t drgn_stack_trace_num_frames(struct drgn_stack_trace *trace);
+
+struct drgn_stack_frame *
+drgn_stack_trace_get_frame(struct drgn_stack_trace *trace, size_t i);
 
 /**
  * Pretty-print a stack trace.
@@ -2331,7 +2330,7 @@ struct drgn_error *drgn_pretty_print_stack_trace(struct drgn_stack_trace *trace,
 						 char **ret);
 
 /** Get the return address at a stack frame. */
-uint64_t drgn_stack_frame_pc(struct drgn_stack_frame frame);
+uint64_t drgn_stack_frame_pc(struct drgn_stack_frame *frame);
 
 /**
  * Get the function symbol at a stack frame.
@@ -2340,17 +2339,17 @@ uint64_t drgn_stack_frame_pc(struct drgn_stack_frame frame);
  * drgn_symbol_destroy(). On error, its contents are undefined.
  * @return @c NULL on success, non-@c NULL on error.
  */
-struct drgn_error *drgn_stack_frame_symbol(struct drgn_stack_frame frame,
+struct drgn_error *drgn_stack_frame_symbol(struct drgn_stack_frame *frame,
 					   struct drgn_symbol **ret);
 
 /** Get the value of a register (by number) in a stack frame. */
-struct drgn_error *drgn_stack_frame_register(struct drgn_stack_frame frame,
+struct drgn_error *drgn_stack_frame_register(struct drgn_stack_frame *frame,
 					     enum drgn_register_number regno,
 					     uint64_t *ret);
 
 /** Get the value of a register (by name) in a stack frame. */
 struct drgn_error *
-drgn_stack_frame_register_by_name(struct drgn_stack_frame frame,
+drgn_stack_frame_register_by_name(struct drgn_stack_frame *frame,
 				  const char *name, uint64_t *ret);
 
 /**
