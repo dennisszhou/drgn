@@ -926,6 +926,15 @@ Stack traces are retrieved with :meth:`Program.stack_trace()`.
 
         :rtype: dict[str, int]
 
+.. class:: StackFunc
+    A ``StackFunc`` represents a single *function* (i.e. inline function) in a
+    StackFrame.
+
+    .. method:: name()
+        Get the function's name.
+
+	:rtype: str
+
 .. _api-reference-types:
 
 Types

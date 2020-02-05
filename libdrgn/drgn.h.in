@@ -2309,6 +2309,7 @@ bool drgn_symbol_eq(struct drgn_symbol *a, struct drgn_symbol *b);
 
 struct drgn_stack_trace;
 struct drgn_stack_frame;
+struct drgn_stack_func;
 
 /** Destroy a @ref drgn_stack_trace. */
 void drgn_stack_trace_destroy(struct drgn_stack_trace *trace);
@@ -2357,6 +2358,13 @@ struct drgn_error *drgn_stack_frame_variable(struct drgn_stack_frame *frame,
 struct drgn_error *
 drgn_stack_frame_register_by_name(struct drgn_stack_frame *frame,
 				  const char *name, uint64_t *ret);
+
+struct drgn_error *
+drgn_stack_frame_num_funcs(struct drgn_stack_frame *frame, size_t *num_funcs);
+
+struct drgn_error *
+drgn_stack_frame_get_func(struct drgn_stack_frame *frame, size_t i,
+			  struct drgn_stack_func **func);
 
 /**
  * Get a stack trace for the thread with the given thread ID.

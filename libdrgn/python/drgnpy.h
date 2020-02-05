@@ -97,6 +97,12 @@ typedef struct {
 
 typedef struct {
 	PyObject_HEAD
+	StackTrace *trace;
+	struct drgn_stack_func *func;
+} StackFunc;
+
+typedef struct {
+	PyObject_HEAD
 	Program *prog;
 	struct drgn_symbol *sym;
 } Symbol;
@@ -115,6 +121,7 @@ extern PyTypeObject ObjectIterator_type;
 extern PyTypeObject Platform_type;
 extern PyTypeObject Program_type;
 extern PyTypeObject Register_type;
+extern PyTypeObject StackFunc_type;
 extern PyTypeObject StackFrame_type;
 extern PyTypeObject StackTrace_type;
 extern PyTypeObject Symbol_type;

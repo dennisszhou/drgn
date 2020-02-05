@@ -180,6 +180,53 @@ static PyObject *StackFrame_variables(StackFrame *self, PyObject *arg)
 	//return PyUnicode_FromString(name);
 }
 
+static Py_ssize_t StackFrame_length(StackFrame *self)
+{
+	struct drgn_error *err;
+	size_t num_funcs;
+
+	err = drgn_stack_frame_num_funcs(self->frame, &num_funcs);
+	if (err)
+		return -1;
+
+	return num_funcs;
+}
+
+static StackFunc *StackFrame_item(StackFrame *self, Py_ssize_t i)
+{
+	struct drgn_error *err;
+	struct drgn_stack_func *func;
+	size_t num_funcs;
+	StackFunc *ret;
+
+	err = drgn_stack_frame_num_funcs(self->frame, &num_funcs);
+	if (err)
+		return NULL;
+
+	if (i < 0 || i >= num_funcs) {
+		PyErr_SetString(PyExc_IndexError,
+				"stack func index out of range");
+		return NULL;
+	}
+	ret = (StackFunc *)StackFunc_type.tp_alloc(&StackFunc_type, 0);
+	if (!ret)
+		return NULL;
+
+	err = drgn_stack_frame_get_func(self->frame, i, &func);
+	if (err)
+		return NULL;
+
+	ret->func = func;
+	ret->trace = self->trace;
+	Py_INCREF(self->trace);
+	return ret;
+}
+
+static PySequenceMethods StackFrame_as_sequence = {
+	.sq_length = (lenfunc)StackFrame_length,
+	.sq_item = (ssizeargfunc)StackFrame_item,
+};
+
 static PyMethodDef StackFrame_methods[] = {
 	{"symbol", (PyCFunction)StackFrame_symbol, METH_NOARGS,
 	 drgn_StackFrame_symbol_DOC},
@@ -202,8 +249,36 @@ PyTypeObject StackFrame_type = {
 	.tp_name = "_drgn.StackFrame",
 	.tp_basicsize = sizeof(StackFrame),
 	.tp_dealloc = (destructor)StackFrame_dealloc,
+	.tp_as_sequence = &StackFrame_as_sequence,
 	.tp_flags = Py_TPFLAGS_DEFAULT,
 	.tp_doc = drgn_StackFrame_DOC,
 	.tp_methods = StackFrame_methods,
 	.tp_getset = StackFrame_getset,
+};
+
+static void StackFunc_dealloc(StackFunc *self)
+{
+	Py_XDECREF(self->trace);
+	Py_TYPE(self)->tp_free((PyObject *)self);
+}
+
+static PyObject *StackFunc_name(StackFunc *self)
+{
+	return PyUnicode_FromString("test");
+}
+
+static PyMethodDef StackFunc_methods[] = {
+	{"name", (PyCFunction)StackFunc_name, METH_NOARGS,
+	 drgn_StackFunc_name_DOC},
+	{},
+};
+
+PyTypeObject StackFunc_type = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+	.tp_name = "_drgn.StackFunc",
+	.tp_basicsize = sizeof(StackFunc),
+	.tp_dealloc = (destructor)StackFunc_dealloc,
+	.tp_flags = Py_TPFLAGS_DEFAULT,
+	.tp_doc = drgn_StackFunc_DOC,
+	.tp_methods = StackFunc_methods,
 };

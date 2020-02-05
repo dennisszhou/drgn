@@ -192,6 +192,34 @@ drgn_stack_frame_register_by_name(struct drgn_stack_frame *frame,
 	return drgn_stack_frame_register(frame, reg->number, ret);
 }
 
+LIBDRGN_PUBLIC struct drgn_error *
+drgn_stack_frame_num_funcs(struct drgn_stack_frame *frame, size_t *num_funcs)
+{
+	struct drgn_error *err = drgn_get_frame_funcs(frame, NULL);
+
+	if (!err)
+		*num_funcs = frame->num_funcs;
+
+	return err;
+}
+
+LIBDRGN_PUBLIC struct drgn_error *
+drgn_stack_frame_get_func(struct drgn_stack_frame *frame, size_t i,
+			  struct drgn_stack_func **func)
+{
+	struct drgn_error *err;
+	struct drgn_stack_func *funcs;
+
+	err = drgn_get_frame_funcs(frame, &funcs);
+	if (err)
+		return err;
+
+	if (i < frame->num_funcs)
+		*func = &funcs[i];
+
+	return NULL;
+}
+
 #define NR_EXPRS 16
 LIBDRGN_PUBLIC struct drgn_error *
 drgn_stack_frame_variable(struct drgn_stack_frame *frame, const char *name,

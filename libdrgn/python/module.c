@@ -196,6 +196,11 @@ DRGNPY_PUBLIC PyMODINIT_FUNC PyInit__drgn(void)
 	Py_INCREF(&Program_type);
 	PyModule_AddObject(m, "Program", (PyObject *)&Program_type);
 
+	if (PyType_Ready(&StackFunc_type) < 0)
+		goto err;
+	Py_INCREF(&StackFunc_type);
+	PyModule_AddObject(m, "StackFunc", (PyObject *)&StackFunc_type);
+
 	if (PyType_Ready(&StackFrame_type) < 0)
 		goto err;
 	Py_INCREF(&StackFrame_type);
