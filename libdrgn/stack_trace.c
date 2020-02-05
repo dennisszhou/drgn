@@ -222,6 +222,52 @@ drgn_stack_frame_get_func(struct drgn_stack_frame *frame, size_t i,
 
 #define NR_EXPRS 16
 LIBDRGN_PUBLIC struct drgn_error *
+drgn_stack_func_get_var(struct drgn_stack_func *func, const char *name,
+			struct drgn_object *ret)
+{
+	struct drgn_error *err;
+	struct drgn_qualified_type qualified_type;
+	Dwarf_Die *scopes, found;
+	Dwarf_Addr pc;
+	Dwarf_Attribute attr, *pattr = NULL;
+	Dwarf_Op *exprs = malloc(sizeof(Dwarf_Op) * NR_EXPRS);
+	size_t exprlens[NR_EXPRS];
+	int nscopes;
+	int rc;
+	uint64_t value;
+
+	pc = (Dwarf_Addr)drgn_stack_frame_pc(func->frame);
+	nscopes = dwarf_getfunc_scopes(&func->die, pc, &scopes);
+	if (!nscopes)
+		return drgn_error_libdw();
+
+	for (int i = 0; i < nscopes; i++) {
+		bool is_func = (dwarf_tag(&scopes[i]) == DW_TAG_subroutine_type);
+		printf("scope %d: %s %d\n", i, dwarf_diename(&scopes[i]), dwarf_tag(&scopes[i]));
+	}
+
+	rc = dwarf_getscopevar(scopes, nscopes, name, 0, NULL, 0, 0, &found);
+	if (rc < 0)
+		return drgn_error_libdw();
+
+	pattr = dwarf_attr_integrate(&found, DW_AT_location, &attr);
+	if (!pattr)
+		return drgn_error_libdw();
+
+	rc = dwarf_getlocation_addr(pattr, pc, &exprs, exprlens, NR_EXPRS);
+	if (rc <= 0)
+		return drgn_error_libdw();
+
+	if (!dwfl_frame_eval_expr(func->frame->frame, &exprs[0], exprlens[0],
+				  &value))
+		return drgn_error_libdwfl();
+
+	err = drgn_type_from_dwarf(func->frame->trace->prog,
+
+	return NULL;
+}
+
+LIBDRGN_PUBLIC struct drgn_error *
 drgn_stack_frame_variable(struct drgn_stack_frame *frame, const char *name,
 			  const char **ret_name,
 			  int *ret_code,

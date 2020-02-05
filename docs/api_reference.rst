@@ -930,10 +930,18 @@ Stack traces are retrieved with :meth:`Program.stack_trace()`.
     A ``StackFunc`` represents a single *function* (i.e. inline function) in a
     StackFrame.
 
-    .. method:: name()
+    .. method:: __getitem__(name)
+
         Get the function's name.
 
-	:rtype: str
+        :param str name: The object name.
+        :rtype: Object
+
+    .. method:: name()
+
+        Get the function's name.
+
+        :rtype: str
 
 .. _api-reference-types:
 

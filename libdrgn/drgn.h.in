@@ -2354,6 +2354,10 @@ struct drgn_error *drgn_stack_frame_variable(struct drgn_stack_frame *frame,
 					     int *ret_code,
 					     uint64_t *ret_val);
 
+struct drgn_error *drgn_stack_func_get_var(struct drgn_stack_func *func,
+					   const char *name,
+					   struct drgn_object *ret);
+
 /** Get the value of a register (by name) in a stack frame. */
 struct drgn_error *
 drgn_stack_frame_register_by_name(struct drgn_stack_frame *frame,

@@ -267,10 +267,46 @@ static PyObject *StackFunc_name(StackFunc *self)
 	return PyUnicode_FromString("test");
 }
 
+static PyObject *StackFunc_subscript(StackFunc *self, PyObject *key)
+{
+	struct drgn_error *err;
+	const char *name;
+	bool clear;
+	DrgnObject *ret;
+
+	if (!PyUnicode_Check(key)) {
+		PyErr_SetObject(PyExc_KeyError, key);
+		return NULL;
+	}
+
+	name = PyUnicode_AsUTF8(key);
+	if (!name)
+		return NULL;
+
+	ret = DrgnObject_alloc(self->trace->prog);
+	if (!ret)
+		return NULL;
+
+	clear = set_drgn_in_python();
+	err = drgn_stack_func_get_var(self->func, name, &ret->obj);
+	if (clear)
+		clear_drgn_in_python();
+
+	Py_DECREF(ret);
+
+	return PyUnicode_FromString(name);
+}
+
 static PyMethodDef StackFunc_methods[] = {
+	{"__getitem__", (PyCFunction)StackFunc_subscript, METH_O | METH_COEXIST,
+	 drgn_StackFunc___getitem___DOC},
 	{"name", (PyCFunction)StackFunc_name, METH_NOARGS,
 	 drgn_StackFunc_name_DOC},
 	{},
+};
+
+static PyMappingMethods StackFunc_as_mapping = {
+	.mp_subscript = (binaryfunc)StackFunc_subscript,
 };
 
 PyTypeObject StackFunc_type = {
@@ -281,4 +317,5 @@ PyTypeObject StackFunc_type = {
 	.tp_flags = Py_TPFLAGS_DEFAULT,
 	.tp_doc = drgn_StackFunc_DOC,
 	.tp_methods = StackFunc_methods,
+	.tp_as_mapping = &StackFunc_as_mapping,
 };
