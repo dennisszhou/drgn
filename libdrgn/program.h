@@ -143,6 +143,9 @@ static inline bool drgn_program_is_64_bit(struct drgn_program *prog)
 	return prog->platform.flags & DRGN_PLATFORM_IS_64_BIT;
 }
 
+struct drgn_error *drgn_program_get_dicache(struct drgn_program *prog,
+					    struct drgn_dwarf_info_cache **ret);
+
 struct drgn_error *drgn_program_get_dwfl(struct drgn_program *prog, Dwfl **ret);
 
 /**

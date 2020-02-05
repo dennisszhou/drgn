@@ -475,8 +475,8 @@ out_fd:
 	return err;
 }
 
-static struct drgn_error *drgn_program_get_dindex(struct drgn_program *prog,
-						  struct drgn_dwarf_index **ret)
+struct drgn_error *drgn_program_get_dicache(struct drgn_program *prog,
+					    struct drgn_dwarf_info_cache **ret)
 {
 	struct drgn_error *err;
 
@@ -511,7 +511,21 @@ static struct drgn_error *drgn_program_get_dindex(struct drgn_program *prog,
 		}
 		prog->_dicache = dicache;
 	}
-	*ret = &prog->_dicache->dindex;
+	*ret = prog->_dicache;
+	return NULL;
+}
+
+static struct drgn_error *drgn_program_get_dindex(struct drgn_program *prog,
+						  struct drgn_dwarf_index **ret)
+{
+	struct drgn_error *err;
+	struct drgn_dwarf_info_cache *dicache;
+
+	err = drgn_program_get_dicache(prog, &dicache);
+	if (err)
+		return err;
+
+	*ret = &dicache->dindex;
 	return NULL;
 }
 
