@@ -8,6 +8,8 @@
 #include <inttypes.h>
 #include <stdlib.h>
 
+#include "dwarf_index.h"
+#include "dwarf_info_cache.h"
 #include "internal.h"
 #include "helpers.h"
 #include "program.h"
@@ -171,7 +173,7 @@ drgn_stack_frame_register(struct drgn_stack_frame *frame,
 	const Dwarf_Op op = { .atom = DW_OP_regx, .number = regno, };
 	Dwarf_Addr value;
 
-	if (!dwfl_frame_eval_expr(frame->frame, &op, 1, &value))
+	if (!dwfl_frame_eval_expr(frame->frame, NULL, &op, 1, &value))
 		return drgn_error_libdwfl();
 	*ret = value;
 	return NULL;
@@ -226,6 +228,7 @@ drgn_stack_func_get_var(struct drgn_stack_func *func, const char *name,
 			struct drgn_object *ret)
 {
 	struct drgn_error *err;
+	struct drgn_dwarf_info_cache *dicache;
 	struct drgn_qualified_type qualified_type;
 	Dwarf_Die *scopes, found;
 	Dwarf_Addr pc;
@@ -258,13 +261,30 @@ drgn_stack_func_get_var(struct drgn_stack_func *func, const char *name,
 	if (rc <= 0)
 		return drgn_error_libdw();
 
-	if (!dwfl_frame_eval_expr(func->frame->frame, &exprs[0], exprlens[0],
-				  &value))
+	printf("hello1?: %s %d \n", dwarf_diename(&found), rc);
+
+	if (!dwfl_frame_eval_expr(func->frame->frame, &func->die, &exprs[0],
+				  exprlens[0], &value))
 		return drgn_error_libdwfl();
 
-	err = drgn_type_from_dwarf(func->frame->trace->prog,
+	printf("hello2?\n");
+
+	err = drgn_program_get_dicache(func->frame->trace->prog, &dicache);
+	if (err)
+		return err;
+
+	printf("hello3?: %p\n", dicache);
 
 	return NULL;
+
+	err = drgn_type_from_dwarf(dicache, &found, &qualified_type);
+	if (err)
+		return err;
+
+	printf("hello4?\n");
+
+	return drgn_object_set_reference(ret, qualified_type, 0, 0, 0,
+					 dwarf_die_byte_order(&found));
 }
 
 LIBDRGN_PUBLIC struct drgn_error *
@@ -313,7 +333,7 @@ drgn_stack_frame_variable(struct drgn_stack_frame *frame, const char *name,
 	if (ret <= 0)
 		return drgn_error_libdw();
 
-	if (!dwfl_frame_eval_expr(frame->frame, &exprs[0], exprlens[0], &value))
+	if (!dwfl_frame_eval_expr(frame->frame, NULL, &exprs[0], exprlens[0], &value))
 		return drgn_error_libdwfl();
 
 	*ret_val = value;

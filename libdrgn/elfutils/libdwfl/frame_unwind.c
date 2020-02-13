@@ -140,11 +140,43 @@ do_pop (struct eval_stack *stack, Dwarf_Addr *val)
   return true;
 }
 
+static bool
+expr_eval (Dwfl_Frame *state, Dwarf_Frame *frame, Dwarf_Die *func, const Dwarf_Op *ops,
+	   size_t nops, Dwarf_Addr *result, Dwarf_Addr bias);
+
+static bool
+get_frame_base (Dwfl_Frame *state, Dwarf_Frame *frame, Dwarf_Die *func,
+	   Dwarf_Addr *result, Dwarf_Addr bias)
+{
+	Dwarf_Attribute attr, *pattr = NULL;
+	Dwarf_Op expr, *pexpr = &expr;
+	size_t exprlens[1];
+	int rc = 0;
+
+	pattr = dwarf_attr_integrate(func, DW_AT_frame_base, &attr);
+	if (!pattr)
+		return false;
+
+	rc = dwarf_getlocation(pattr, &pexpr, exprlens);
+	printf("how did I do? %d %d\n", rc, exprlens[0]);
+	if (rc)
+		return false;
+
+	printf("op: %d %d\n", pexpr->atom, pexpr->number);
+
+	rc = (int)expr_eval(state, frame, func, pexpr, exprlens[0], result, bias);
+
+	printf("result %d = %llu\n", rc, *result);
+
+	return true;
+}
+
+
 /* If FRAME is NULL is are computing CFI frame base.  In such case another
    DW_OP_call_frame_cfa is no longer permitted.  */
 
 static bool
-expr_eval (Dwfl_Frame *state, Dwarf_Frame *frame, const Dwarf_Op *ops,
+expr_eval (Dwfl_Frame *state, Dwarf_Frame *frame, Dwarf_Die *func, const Dwarf_Op *ops,
 	   size_t nops, Dwarf_Addr *result, Dwarf_Addr bias)
 {
   Dwfl_Process *process = state->thread->process;
@@ -251,6 +283,19 @@ expr_eval (Dwfl_Frame *state, Dwarf_Frame *frame, const Dwarf_Op *ops,
 	      return false;
 	    }
 	  break;
+	case DW_OP_fbreg:
+	  if (! get_frame_base (state, frame, func, &val1, bias))
+	  {
+		  free (stack.addrs);
+		  return false;
+	  }
+	  val1 += op->number;
+	  if (! push (val1))
+		{
+			free (stack.addrs);
+			return false;
+		}
+          break;
 	case DW_OP_dup:
 	  if (! pop (&val1) || ! push (val1) || ! push (val1))
 	    {
@@ -467,7 +512,7 @@ expr_eval (Dwfl_Frame *state, Dwarf_Frame *frame, const Dwarf_Op *ops,
 	  Dwarf_Addr cfa;
 	  if (frame == NULL
 	      || dwarf_frame_cfa (frame, &cfa_ops, &cfa_nops) != 0
-	      || ! expr_eval (state, NULL, cfa_ops, cfa_nops, &cfa, bias)
+	      || ! expr_eval (state, NULL, func, cfa_ops, cfa_nops, &cfa, bias)
 	      || ! push (cfa))
 	    {
 	      __libdwfl_seterrno (DWFL_E_LIBDW);
@@ -600,7 +645,7 @@ handle_cfi (Dwfl_Frame *state, Dwarf_Addr pc, Dwarf_CFI *cfi, Dwarf_Addr bias)
 	      continue;
 	    }
 	}
-      else if (! expr_eval (state, frame, reg_ops, reg_nops, &regval, bias))
+      else if (! expr_eval (state, frame, NULL, reg_ops, reg_nops, &regval, bias))
 	{
 	  /* PPC32 vDSO has various invalid operations, ignore them.  The
 	     register will look as unset causing an error later, if used.
@@ -789,7 +834,7 @@ dwfl_frame_dwarf_frame (Dwfl_Frame *state, Dwarf_Addr *bias)
 }
 
 bool
-dwfl_frame_eval_expr (Dwfl_Frame *state, const Dwarf_Op *ops, size_t nops,
+dwfl_frame_eval_expr (Dwfl_Frame *state, Dwarf_Die *func, const Dwarf_Op *ops, size_t nops,
 		      Dwarf_Addr *result)
 {
   if (state->frame == NULL)
@@ -797,5 +842,5 @@ dwfl_frame_eval_expr (Dwfl_Frame *state, const Dwarf_Op *ops, size_t nops,
       __libdwfl_seterrno (DWFL_E_NO_DWARF);
       return false;
     }
-  return expr_eval (state, state->frame, ops, nops, result, state->bias);
+  return expr_eval (state, state->frame, func, ops, nops, result, state->bias);
 }

@@ -267,7 +267,7 @@ static PyObject *StackFunc_name(StackFunc *self)
 	return PyUnicode_FromString("test");
 }
 
-static PyObject *StackFunc_subscript(StackFunc *self, PyObject *key)
+static DrgnObject *StackFunc_subscript(StackFunc *self, PyObject *key)
 {
 	struct drgn_error *err;
 	const char *name;
@@ -292,9 +292,15 @@ static PyObject *StackFunc_subscript(StackFunc *self, PyObject *key)
 	if (clear)
 		clear_drgn_in_python();
 
-	Py_DECREF(ret);
+	if (err) {
+		Py_DECREF(ret);
+		set_drgn_error(err);
+	} else {
+		return ret;
+	}
 
-	return PyUnicode_FromString(name);
+	return NULL;
+	//return PyUnicode_FromString(name);
 }
 
 static PyMethodDef StackFunc_methods[] = {

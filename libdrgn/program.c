@@ -510,8 +510,10 @@ struct drgn_error *drgn_program_get_dicache(struct drgn_program *prog,
 			return err;
 		}
 		prog->_dicache = dicache;
+		printf("dicache: %p\n", dicache);
 	}
 	*ret = prog->_dicache;
+	printf("dicache set: %p\n", prog->_dicache);
 	return NULL;
 }
 
