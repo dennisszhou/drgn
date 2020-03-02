@@ -230,16 +230,17 @@ drgn_stack_func_get_var(struct drgn_stack_func *func, const char *name,
 	struct drgn_error *err;
 	struct drgn_dwarf_info_cache *dicache;
 	struct drgn_qualified_type qualified_type;
-	Dwarf_Die *scopes, found;
+	Dwarf_Die *scopes, found, *ptype_die, type_die;
 	Dwarf_Addr pc;
 	Dwarf_Attribute attr, *pattr = NULL;
+	Dwarf_Attribute tattr, *ptattr = NULL;
 	Dwarf_Op *exprs = malloc(sizeof(Dwarf_Op) * NR_EXPRS);
 	size_t exprlens[NR_EXPRS];
 	int nscopes;
 	int rc;
 	uint64_t value;
 
-	pc = (Dwarf_Addr)drgn_stack_frame_pc(func->frame);
+	pc = (Dwarf_Addr)drgn_stack_frame_pc(func->frame) - 1;
 	nscopes = dwarf_getfunc_scopes(&func->die, pc, &scopes);
 	if (!nscopes)
 		return drgn_error_libdw();
@@ -249,13 +250,20 @@ drgn_stack_func_get_var(struct drgn_stack_func *func, const char *name,
 		printf("scope %d: %s %d\n", i, dwarf_diename(&scopes[i]), dwarf_tag(&scopes[i]));
 	}
 
+	printf("hello0?: pc %p\n", pc);
+
 	rc = dwarf_getscopevar(scopes, nscopes, name, 0, NULL, 0, 0, &found);
 	if (rc < 0)
 		return drgn_error_libdw();
 
+	printf("hello0.1?: %d\n", rc);
+	printf("hello1?: %s %d \n", dwarf_diename(&found), rc);
+
 	pattr = dwarf_attr_integrate(&found, DW_AT_location, &attr);
 	if (!pattr)
 		return drgn_error_libdw();
+
+	printf("hello0.2?:\n");
 
 	rc = dwarf_getlocation_addr(pattr, pc, &exprs, exprlens, NR_EXPRS);
 	if (rc <= 0)
@@ -267,7 +275,7 @@ drgn_stack_func_get_var(struct drgn_stack_func *func, const char *name,
 				  exprlens[0], &value))
 		return drgn_error_libdwfl();
 
-	printf("hello2?\n");
+	printf("hello2?: %p\n", value);
 
 	err = drgn_program_get_dicache(func->frame->trace->prog, &dicache);
 	if (err)
@@ -275,15 +283,22 @@ drgn_stack_func_get_var(struct drgn_stack_func *func, const char *name,
 
 	printf("hello3?: %p\n", dicache);
 
-	return NULL;
+	ptattr = dwarf_attr_integrate(&found, DW_AT_type, &tattr);
+	if (!pattr)
+		return drgn_error_libdw();
 
-	err = drgn_type_from_dwarf(dicache, &found, &qualified_type);
+	ptype_die = dwarf_formref_die(ptattr, &type_die);
+	if (!ptype_die)
+		return drgn_error_libdw();
+
+	printf("type_die: %s\n", dwarf_diename(ptype_die));
+	err = drgn_type_from_dwarf(dicache, ptype_die, &qualified_type);
 	if (err)
 		return err;
 
-	printf("hello4?\n");
+	printf("hello4?: %p\n", value);
 
-	return drgn_object_set_reference(ret, qualified_type, 0, 0, 0,
+	return drgn_object_set_reference(ret, qualified_type, value, 0, 0,
 					 dwarf_die_byte_order(&found));
 }
 
@@ -650,7 +665,7 @@ static bool drgn_thread_set_initial_registers(Dwfl_Thread *thread,
 	err = linux_helper_task_state_to_char(&obj, &state);
 	if (err)
 		goto out;
-	if (state == 'R') {
+	if (state == 'R' && false) {
 		err = drgn_error_create(DRGN_ERROR_INVALID_ARGUMENT,
 					"cannot unwind stack of running task");
 		goto out;
@@ -683,7 +698,7 @@ static struct drgn_error *drgn_get_frame_funcs(struct drgn_stack_frame *frame,
 	}
 
 	module = dwfl_frame_module(frame->frame);
-	pc = (Dwarf_Addr)drgn_stack_frame_pc(frame);
+	pc = (Dwarf_Addr)drgn_stack_frame_pc(frame) - 1;
 	cudie = dwfl_module_addrdie(module, pc, &bias);
 
 	res = dwarf_getfuncs_pc(cudie, pc, &func_dies);

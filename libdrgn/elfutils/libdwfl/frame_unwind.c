@@ -519,6 +519,8 @@ expr_eval (Dwfl_Frame *state, Dwarf_Frame *frame, Dwarf_Die *func, const Dwarf_O
 	      free (stack.addrs);
 	      return false;
 	    }
+
+	  printf("dennisz: cfa ops: %d\n", cfa_nops);
 	  is_location = true;
 	  break;
 	case DW_OP_stack_value:
